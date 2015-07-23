@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 require "rubygems"
 require "thor"
-require "zip"
+require "zip/zip"
 
 class MyCLI < Thor
   class_option :verbose, :type => :boolean, :aliases => "-v"
@@ -119,8 +119,8 @@ BIG_QUESTION
     FileUtils.cp mobile_provision, "Payload/#{app_folder}/embedded.mobileprovision"
 
     say "\nTrying to re-sign now....",:yellow if options[:verbose]
-    say "\nExecuting this command: /usr/bin/codesign -f -s '#{options[:certificate]}' -i '#{bundle_id}' --resource-rules 'Payload/#{app_folder}/ResourceRules.plist' --entitlements '#{entitlements}' -vv 'Payload/#{app_folder}'", :yellow if options[:verbose]
-    `/usr/bin/codesign -f -s "#{options[:certificate]}" -i "#{bundle_id}" --resource-rules "Payload/#{app_folder}/ResourceRules.plist" --entitlements "#{entitlements}" -vv "Payload/#{app_folder}"`
+    say "\nExecuting this command: /usr/bin/codesign -f -s '#{options[:certificate]}' -i '#{bundle_id}' --entitlements '#{entitlements}' -vv 'Payload/#{app_folder}'", :yellow if options[:verbose]
+    `/usr/bin/codesign -f --verbose -s "#{options[:certificate]}" -i "#{bundle_id}" --entitlements "#{entitlements}" -vv "Payload/#{app_folder}"`
 
     say "\nNow zipping it up...",:yellow if options[:verbose]
     signed_ipa = options[:output]
@@ -221,7 +221,7 @@ BIG_QUESTION
       say "\nRemoving previous 'Payload' folder",:yellow if File.exist?('Payload') && force && options[:verbose]
       FileUtils.rm_rf('Payload') if force
   
-      Zip::File.open(file) { |zip_file|
+      Zip::ZipFile.open(file) { |zip_file|
        zip_file.each { |f|
          f_path = File.join(destination, f.name)
          say "unzipping... #{f_path}",:yellow if options[:verbose]
