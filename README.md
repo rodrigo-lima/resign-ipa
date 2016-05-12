@@ -1,17 +1,21 @@
-resign-ipa
+ipa-tools
 ==========
 
 **ipa-tools.rb** resign will re-sign the given IPA file using the provided distribution certificate.
 
-In order for it to work, you need to provide the IPA to be signed and the name of the distribution certificate to be used, for example: *"iPhone Distribution: My Name"*
+In order for it to work, you must provide the following:
 
-You also need to provide the mobileprovision profile to be used.
-By default, the script searches the current folder for a file called *'mobileprovision.plist'*.
-Optionally, you could provided the fully qualified path (-p argument).
+- **-i** -- IPA file name to be signed. Example: `-i "My_App.ipa"`
+- **-e** -- Executable file name. Example: `-e "My App"`
+- **-c** -- distribution certificate to be used. Example: `-c "iPhone Distribution: John Smith (1234)"`
+- **-p** -- mobileprovision file. By default, it'll look for a file called **mobileprovision.plist**, or you could specify the full path with **-p**. Example: `-p "~/Downloads/Team_Provisioning.plist"`
+- **-o** -- output signed IPA file name. Example: `-o "Signed_App.ipa`
 
-The script will also apply new Entitlements during signing, if it finds *'entitlements.plist'* file on the current directory.
+The script will also apply new **Entitlements** during signing. It searches for a file *'entitlements.plist'* on the current directory, and will ask you for a full file path if it cannot find.
 
 After signed, the default output is called **'signed.ipa'** unless specified via -o argument.
+
+A sample shell script - run_resign.sh - has been provided with most common options pre-set. Just update the variables on the top and run this shell script.
 
 ```
 > $ ipa-tools.rb resign -i "My App.ipa" -c "iPhone Distribution: John Smith (1234)" -v
@@ -22,3 +26,8 @@ After signed, the default output is called **'signed.ipa'** unless specified via
                         -o "My-SignedApp.ipa" \
                         -v
 ```
+
+References
+====
+- [Checking Distribution Entitlements](https://developer.apple.com/library/ios/qa/qa1798/_index.html)
+

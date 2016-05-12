@@ -11,8 +11,8 @@ class MyCLI < Thor
     `ipa-tools.rb resign` will re-sign the given IPA file using the provided distribution certificate.
 
     In order for it to work, you need to provide the IPA to be signed and the name of the distribution certificate to be used, for example: "iPhone Distribution: My Name"
-    
-    You also need to provide the mobileprovision profile to be used.
+
+    You also need to provide the 'mobileprovision' profile to be used.
     By default, the script searches the current folder for a file called 'mobileprovision.plist'.
     Optionally, you could provided the fully qualified path (-p argument).
 
@@ -20,31 +20,33 @@ class MyCLI < Thor
 
     The default output is called 'signed.ipa' unless specified via -o argument.
 
-    > $ ipa-tools.rb resign -i "My App.ipa" -c "iPhone Distribution: John Smith (1234)" -v
+    > $ ipa-tools.rb resign -i "My App.ipa" -e "My App" -c "iPhone Distribution: John Smith (1234)" -v
 
-    > $ ipa-tools.rb resign -i "Another App.ipa" -c "iPhone Distribution: John Smith (1234)" -p "~/Downloads/Team_Provisioning.plist" -o "My-SignedApp.ipa"
+    > $ ipa-tools.rb resign -i "Another App.ipa" -e "Another App"  -c "iPhone Distribution: John Smith (1234)" -p "~/Downloads/Team_Provisioning.mobileprovision" -o "My-SignedApp.ipa"
 
 LONGDESC
   option :ipa, :required => true, :type => :string, :aliases => "-i"
+  option :executable, :required => true, :type => :string, :aliases => "-e"
   option :certificate, :required => true, :type => :string, :aliases => "-c"
   option :provisioning, :type => :string, :aliases => "-p"
   option :output, :type => :string, :aliases => "-o"
   def resign()
-    ipa_file = options[:ipa]    
-    say "\nRe-Sign #{ipa_file} ----------------",:cyan
+    ipa_file = options[:ipa]
+    executable_name = options[:executable]
+    say "\nRe-Sign #{ipa_file} / #{executable_name} ----------------",:cyan
     exit if not ipa_exists?(ipa_file)
 
     # UNZIP -------------------------------------------------------------------
-    exit if not unzip_app ipa_file
+    exit if not unzip_app(ipa_file, executable_name)
 
     # APP FOLDER --------------------------------------------------------------
     app_folder = find_app_folder 'Payload', 'app'
 
     # DISPLAY original bundleID -----------------------------------------------
     bundle_id = display_bundleid
-    
+
     # fine mobileprovision ----------------------------------------------------
-    mobile_provision = options[:provisioning]    
+    mobile_provision = options[:provisioning]
     if not ipa_exists? mobile_provision
       mobile_provision = find_app_folder '.', 'mobileprovision.plist'
       if not mobile_provision
@@ -54,7 +56,7 @@ LONGDESC
 
 'mobileprovision.plist' not found on working directory.
 You *must* provide a mobileprovision file in order to be able to resign the IPA.
-Please enter the location of the mobileprovision file, or 'Enter' to cancel: 
+Please enter the location of the mobileprovision file, or 'Enter' to cancel:
 BIG_QUESTION
 
           if mobile_provision.length == 0 # user just hit enter
@@ -68,7 +70,7 @@ BIG_QUESTION
       end
     end
     if mobile_provision.length == 0
-      say "\nCould not find mobile_provision, existing...", :red 
+      say "\nCould not find mobile_provision, existing...", :red
       exit
     end
     say "\nUsing mobile_provision file: '#{mobile_provision}'", :cyan
@@ -96,12 +98,12 @@ BIG_QUESTION
     end
     say "\nWill *not* replace entitlements", :cyan if entitlements.length == 0
     say "\nReplace entitlements with contents of '#{entitlements}'", :cyan if entitlements.length > 0
-    
+
     # DISPLAY original mobileprovision ----------------------------------------
     replace_bundle_id = yes? "\nDo you want to replace BundleID: #{bundle_id} ? Y/(N): ",:green
-    if replace_bundle_id 
+    if replace_bundle_id
       new_bundle_id = ask "\nEnter new BundleID: "
-      if new_bundle_id.length > 0 
+      if new_bundle_id.length > 0
         plist_buddy("Payload/#{app_folder}/Info.plist",'Set','CFBundleIdentifier', new_bundle_id)
         say "\nNew bundleID set to #{new_bundle_id}", :cyan
         bundle_id = new_bundle_id
@@ -128,7 +130,7 @@ BIG_QUESTION
       signed_ipa = "signed.ipa"
     end
     # clean up
-    FileUtils.rm_rf(signed_ipa) 
+    FileUtils.rm_rf(signed_ipa)
     say "\nCreating... #{signed_ipa} file.",:cyan
     `zip --symlinks --recurse-path -9 "#{signed_ipa}" Payload`
 
@@ -138,7 +140,7 @@ BIG_QUESTION
 
   # UNZIP -------------------------------------------------------------------
   desc "unzip_app", "Unzip APP file"
-  def unzip_app(ipa_file)
+  def unzip_app(ipa_file, executable_name)
     if not ipa_exists?(ipa_file)
       false
     end
@@ -149,10 +151,19 @@ BIG_QUESTION
       should_remove = yes?"\nPayload folder already exists, do you want to override? Y/(N): ",:green
       # puts "response = #{should_remove}"
     end
-    
+
     if should_remove
       say "\nUnzipping IPA - #{ipa_file}", :cyan
       unzip_file(ipa_file, ".", should_remove)
+    end
+
+    say "\n... Making sure App is executable ...", :cyan
+    app_folder = find_app_folder 'Payload', 'app'
+    if app_folder
+      ext = File.extname(app_folder)
+      file_no_ext = "Payload/#{app_folder}/#{executable_name}"
+      say "... THIS is the file #{file_no_ext} ...", :cyan
+      FileUtils.chmod "a+x", file_no_ext if File.exists?(file_no_ext)
     end
 
     true
@@ -209,8 +220,8 @@ BIG_QUESTION
     def ipa_exists?(ipa_file)
       if !ipa_file || ipa_file.length == 0
         false
-      elsif !File.exists? ipa_file 
-        say "Can't find file - #{ipa_file}", :red 
+      elsif !File.exists? ipa_file
+        say "Can't find file - #{ipa_file}", :red
         false
       else
         true
@@ -220,18 +231,19 @@ BIG_QUESTION
     def unzip_file (file, destination, force)
       say "\nRemoving previous 'Payload' folder",:yellow if File.exist?('Payload') && force && options[:verbose]
       FileUtils.rm_rf('Payload') if force
-  
+
       Zip::ZipFile.open(file) { |zip_file|
+       say "unzipping... #{zip_file}",:yellow if options[:verbose]
        zip_file.each { |f|
          f_path = File.join(destination, f.name)
-         say "unzipping... #{f_path}",:yellow if options[:verbose]
+         # say "unzipping... #{f_path}",:yellow if options[:verbose]
          FileUtils.mkdir_p(File.dirname(f_path))
          zip_file.extract(f, f_path) unless File.exist?(f_path)
        }
       }
-    end   
+    end
   }
-  
+
 end
 
 
