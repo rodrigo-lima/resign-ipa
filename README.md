@@ -31,7 +31,7 @@ Requirements
 ====
 - RubyGems -- [download](https://rubygems.org/pages/download)
 - thor -- [info](https://rubygems.org/gems/thor)
-- rubyzip -- [info](http://www.rubydoc.info/gems/zip)
+- zip -- [info](https://rubygems.org/gems/zip)
 
 References
 ====
