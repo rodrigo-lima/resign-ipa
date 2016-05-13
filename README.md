@@ -27,6 +27,12 @@ A sample shell script - run_resign.sh - has been provided with most common optio
                         -v
 ```
 
+Requirements
+====
+- RubyGems -- [download](https://rubygems.org/pages/download)
+- thor -- [info](https://rubygems.org/gems/thor)
+- rubyzip -- [info](http://www.rubydoc.info/gems/zip)
+
 References
 ====
 - [Checking Distribution Entitlements](https://developer.apple.com/library/ios/qa/qa1798/_index.html)
